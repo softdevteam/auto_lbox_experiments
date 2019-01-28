@@ -1,0 +1,15 @@
+diff --git a/lib/eco/autolboxdetector.py b/lib/eco/autolboxdetector.py
+index 6aa3190..a1b6e06 100644
+--- a/lib/eco/autolboxdetector.py
++++ b/lib/eco/autolboxdetector.py
+@@ -62,9 +62,7 @@ class NewAutoLboxDetector(object):
+     def detect_lbox(self, errornode):
+         # Try heuristic #2 first; if it fails to find an automatic language
+         # box, try heuristic #1
+-        valid = self.detect_lbox_h2(errornode)
+-        if not valid:
+-            valid = self.detect_lbox_h1(errornode)
++        valid = self.detect_lbox_h1(errornode)
+ 
+         if errornode.autobox is False:
+             # XXX Currently, we don't suggest any language boxes for an error,
