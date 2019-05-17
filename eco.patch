@@ -1,0 +1,25 @@
+diff --git a/lib/eco/incparser/incparser.py b/lib/eco/incparser/incparser.py
+index 99ba93e..16aca4c 100644
+--- a/lib/eco/incparser/incparser.py
++++ b/lib/eco/incparser/incparser.py
+@@ -985,6 +985,7 @@ class IncParser(object):
+         # deleted ones)
+         if not node.isolated:
+             return False
++        return True
+         la = self.pop_lookahead(node)
+         return la.has_changes()
+ 
+diff --git a/lib/eco/treemanager.py b/lib/eco/treemanager.py
+index a59323f..dc0fe60 100644
+--- a/lib/eco/treemanager.py
++++ b/lib/eco/treemanager.py
+@@ -551,7 +551,7 @@ class TreeManager(object):
+                 from astanalyser import AstAnalyser
+                 return AstAnalyser(lang.nb_file)
+             else:
+-                print("Namebinding file '%s' not found." % (lang.nb_file))
++                pass#print("Namebinding file '%s' not found." % (lang.nb_file))
+ 
+ 
+     def get_languagebox(self, node):
