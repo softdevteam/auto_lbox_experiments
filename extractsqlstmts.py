@@ -3,10 +3,12 @@
 import sys
 import re, os, json
 from time import time
-from grammars.grammars import sqlite
+from grammars.grammars import lang_dict
 from grammar_parser.gparser import Terminal
 from treelexer.lexer import Lexer
 from incparser.syntaxtable import FinishSymbol, Reduce, Accept, Shift
+
+sqlite = lang_dict["SQLite"]
 
 class Parser(object):
 
