@@ -127,6 +127,10 @@ sqlfiles: sqlstmts.json
 	mkdir sqlfiles
 	python2 extractsqlfiles.py
 
+# Make tables
+tables:
+	cd latex; make
+
 clean:
 	rm -r sqlite/
 	rm -r wordpress
