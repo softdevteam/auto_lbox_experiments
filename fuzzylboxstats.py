@@ -75,6 +75,7 @@ class FuzzyLboxStats:
 
         self.faillog = []
         self.multilog = []
+        self.lenlog = []
 
     def load_main(self, filename):
         self.filename = filename
@@ -225,6 +226,7 @@ class FuzzyLboxStats:
                 self.insert_python_expression(choice)
                 valid = self.parser.last_status
                 if before == len(self.treemanager.parsers):
+                    self.lenlog.append((0, 0))
                     if len(self.parser.error_nodes) > 0 and self.parser.error_nodes[0].autobox and len(self.parser.error_nodes[0].autobox) > 1:
                         noinsert_multi += 1
                         result = "No box inserted (Multi)"
@@ -242,6 +244,10 @@ class FuzzyLboxStats:
                 else:
                     result = "Box inserted"
                     self.inserted += 1
+                    recent_box = self.treemanager.parsers[-1].previous_version.parent
+                    lbox_len = len(self.lbox_length(recent_box))
+                    self.lenlog.append((lbox_len, insert_len))
+                    insert_len = len(choice)
                     if valid:
                         inserted_valid += 1
                         self.faillog.append(("ok", self.filename, repr(deleted), repr(choice)))
@@ -270,12 +276,23 @@ class FuzzyLboxStats:
             if before == self.treemanager.version:
                 exit("Error")
 
+    def lbox_length(self, root):
+        l = 0
+        node = root.children[0]
+        eos = root.children[-1]
+        while node is not eos:
+            if not node.deleted:
+                l += len(node.symbol.name)
+            node = node.next_term
+        return l
+
 def run_multi(name, main, sub, folder, ext, exprs, mrepl, srepl=None, config=None):
     if config:
         run_config(name, main, sub, config, exprs, mrepl)
         return
     runcfg = []
     results = []
+    lenlog = []
     faillog = []
     multilog = []
     files = [y for x in os.walk(folder) for y in glob.glob(os.path.join(x[0], ext))]
@@ -284,12 +301,13 @@ def run_multi(name, main, sub, folder, ext, exprs, mrepl, srepl=None, config=Non
         files = random.sample(files, MAX_FILES)
     i = 0
     for filename in files:
-        c, r, f, m = run_single(filename, main, sub, exprs, mrepl, srepl)
+        c, r, f, m, l = run_single(filename, main, sub, exprs, mrepl, srepl)
         if c is None:
             continue
         runcfg.append(c)
         results.append(r)
         faillog.extend(f)
+        lenlog.extend(l)
         multilog.extend(m)
         i = i + sum(r)
         if i > 1000:
@@ -298,6 +316,7 @@ def run_multi(name, main, sub, folder, ext, exprs, mrepl, srepl=None, config=Non
     with open("{}_run.json".format(name), "w") as f: json.dump(runcfg, f, indent=0)
     with open("{}_log.json".format(name), "w") as f: json.dump(results, f)
     with open("{}_fail.json".format(name), "w") as f: json.dump(faillog, f, indent=0)
+    with open("{}_len.json".format(name), "w") as f: json.dump(lenlog, f, indent=0)
     with open("{}_multi.json".format(name), "w") as f: json.dump(multilog, f, indent=0)
     print
 
@@ -323,26 +342,29 @@ def run_single(filename, main, sub, exprs, mrepl, srepl, msample=None, ssample=N
         sys.stdout.write(".")
         sys.stdout.flush()
     config = (filename, fuz.main_samples, fuz.sub_samples)
-    return config, r, fuz.faillog, fuz.multilog
+    return config, r, fuz.faillog, fuz.multilog, fuz.lenlog
 
 def run_config(name, main, sub, configdir, exprs, mrepl, srepl=None):
     with open("{}/{}_run.json".format(configdir, name)) as f:
         runcfg = []
         log = []
         faillog = []
+        lenlog = []
         multilog = []
         config = json.load(f)
         for filename, msample, ssample in config:
-            c, r, f, m = run_single(filename, main, sub, exprs, mrepl, srepl, msample, ssample)
+            c, r, f, m, l = run_single(filename, main, sub, exprs, mrepl, srepl, msample, ssample)
             if c is None:
                 continue
             runcfg.append(c)
             log.append(r)
+            lenlog.extend(l)
             faillog.extend(f)
             multilog.extend(m)
         with open("{}_run.json".format(name), "w") as f: json.dump(runcfg, f, indent=0)
         with open("{}_log.json".format(name), "w") as f: json.dump(log, f)
         with open("{}_fail.json".format(name), "w") as f: json.dump(faillog, f, indent=0)
+        with open("{}_len.json".format(name), "w") as f: json.dump(lenlog, f, indent=0)
         with open("{}_multi.json".format(name), "w") as f: json.dump(multilog, f, indent=0)
         print
 

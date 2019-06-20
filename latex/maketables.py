@@ -31,10 +31,12 @@ class TableMaker:
     def __init__(self, folders):
         self.makros = []
         self.corpus = {}
+        self.inslen = {}
         self.get_benchmarks(folders[0])
         rows = []
         for folder in folders:
             data, corpus = self.parse(folder)
+            inslen = self.parse_length(folder)
             self.corpus[folder] = corpus
             rows.append(self.make_row(folder, data))
         table = self.make_table(rows)
@@ -59,23 +61,48 @@ class TableMaker:
             corpus[c] = totale + totalf
         return data, corpus
 
+    def parse_length(self, heuristic):
+        data = {}
+        for c in self.benchmarks:
+            clen = c.replace("log.json", "len.json")
+            with open("{}/{}/{}".format(EXPERIMENT_DIR, heuristic, clen)) as f:
+                data[c] = json.load(f)
+        return data
+
     def collect_stats(self, filename):
         if not os.path.exists(filename):
             return {}, 0
         d = {}
         with open(filename) as f:
             l = json.load(f)
+            with open(filename.replace("log.json", "len.json")) as f2:
+                l2 = json.load(f2)
             total   = sum([sum(x) for x in l])
             valid   = sum([x[0] for x in l])
             invalid = sum([x[1] for x in l])
             novalid = sum([x[2] for x in l])
             noerror = sum([x[3] for x in l])
             nomulti = sum([x[4] for x in l])
+            # collect lengths for valid/invalid
+            validsame = validdiff = invalidsame = invaliddiff = 0
+            for i in xrange(len(l)):
+                if l2[i][0] == l2[i][1]:
+                    validsame += l[i][0]
+                    invalidsame += l[i][1]
+                else:
+                    validsame += l[i][0]
+                    invaliddiff += l[i][1]
+            assert validsame + validdiff == valid
+            assert invalidsame + invaliddiff == invalid
             d["valid"]   = float(valid)   / total
             d["invalid"] = float(invalid) / total
             d["novalid"] = float(novalid) / total
             d["noerror"] = float(noerror) / total
             d["nomulti"] = float(nomulti) / total
+            d["validsame"]   = float(validsame)   / total
+            d["invalidsame"] = float(invalidsame) / total
+            d["validdiff"]   = float(validdiff)   / total
+            d["invaliddiff"] = float(invaliddiff) / total
         return d, total
 
     def get_benchmarks(self, heuristic):
@@ -127,8 +154,8 @@ class Valid(TableMaker):
         return " c " * (len(self.benchmarks) + 1)
 
     def make_header(self):
-        bs = ["\\rotatebox{{60}}{{{}}}".format(bench_names[b[:-9]]) for b in self.benchmarks] # remove '_log.json'
-        return "    & {} & \\rotatebox{{60}}{{Overall}}".format(" & ".join(bs))
+        bs = ["\\rotatebox{{65}}{{{}}}".format(bench_names[b[:-9]]) for b in self.benchmarks] # remove '_log.json'
+        return "    & {} & \\rotatebox{{65}}{{Overall}}".format(" & ".join(bs))
 
     def make_totalrow(self):
         overall = sum(self.corpus["all"].values())
@@ -160,7 +187,7 @@ class Breakdown(TableMaker):
 
     def make_row(self, folder, data):
         l = []
-        for x in ["valid", "invalid", "novalid", "noerror", "nomulti"]:
+        for x in ["validsame", "validdiff", "invaliddiff", "novalid", "noerror", "nomulti"]:
             total = 0
             for bench in data:
                 total += data[bench][x]
@@ -169,11 +196,11 @@ class Breakdown(TableMaker):
         return "    {} & {} \\\\".format(heu_names[folder], " & ".join(l))
 
     def cell_alignment(self):
-        return " c " * 5
+        return " c " * 7
 
     def make_header(self):
         l = []
-        for label in ["Valid\\\\insertion", "Invalid\\\\insertion", "No insertion\\\\(Valid)", "No insertion\\\\(Error)", "No insertion\\\\(Multi)"]:
+        for label in ["Complete insertion\\\\(No errors)", "Partial insertion\\\\(No errors)", "Partial insertion\\\\(Errors)", "No insertion\\\\(Valid)", "No insertion\\\\(Errors)", "No insertion\\\\(Multi)"]:
             l.append("\multicolumn{1}{p{2cm}}{\centering %s}" % label)
         return "    & {}".format(" & ".join(l))
 
@@ -193,16 +220,19 @@ class BenchmarkBreakdown(TableMaker):
         rows = []
         for bench in self.benchmarks:
             l = []
-            for x in ["valid", "invalid", "novalid", "noerror", "nomulti"]:
+            for x in ["validsame", "validdiff", "invaliddiff", "novalid", "noerror", "nomulti"]:
                 l.append("{:.1f}\%".format(data[bench][x] * 100))
             rows.append("    {} & {} \\\\".format(bench_names[bench[:-9]], " & ".join(l)))
         return rows
 
     def cell_alignment(self):
-        return " c " * 5
+        return " c " * 7
 
     def make_header(self):
-        return "    & Valid & Invalid & NoValid & NoError & NoMulti"
+        l = []
+        for label in ["Complete insertion\\\\(No errors)", "Partial insertion\\\\(No errors)", "Partial insertion\\\\(Errors)", "No insertion\\\\(Valid)", "No insertion\\\\(Errors)", "No insertion\\\\(Multi)"]:
+            l.append("\multicolumn{1}{p{2cm}}{\centering %s}" % label)
+        return "    & {}".format(" & ".join(l))
 
 if __name__ == "__main__":
     tabletype = sys.argv[1]
