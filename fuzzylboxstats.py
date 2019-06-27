@@ -90,9 +90,11 @@ class FuzzyLboxStats:
 
     def reset(self):
         self.parser.reset()
+        self.ast = self.parser.previous_version
         self.treemanager = TreeManager()
         self.treemanager.add_parser(self.parser, self.lexer, self.langname)
         self.treemanager.import_file(self.content)
+        self.treemanager.option_autolbox_insert = True
         self.mainexprs = self.find_nonterms_by_name(self.treemanager, self.main_repl_str)
 
     def load_expr(self, filename):
@@ -216,14 +218,15 @@ class FuzzyLboxStats:
             self.sub_samples = sub_samples
             replchoices = [self.replexprs[i] for i in sub_samples]
 
-        for i, e in enumerate(exprchoices):
+        for i in range(len(exprchoices)):
+            e = exprchoices[i]
             if e.get_root() is None:
                 continue
             before = len(self.treemanager.parsers)
             deleted = self.delete_expr(e)
             if deleted:
-                choice = replchoices[i]
-                if debug: print "  Replacing '{}' with '{}':".format(truncate(deleted), choice)
+                choice = replchoices[i].strip()
+                if debug: print "  Replacing '{}' with '{}':".format(repr(truncate(deleted)), repr(choice))
                 start = time.time()
                 self.insert_python_expression(choice)
                 self.timelog.append(time.time() - start)
@@ -246,12 +249,13 @@ class FuzzyLboxStats:
                         self.faillog.append(("error", self.filename, repr(deleted), repr(choice)))
                 else:
                     result = "Box inserted"
+                    innervalid = self.treemanager.parsers[-1][0].last_status
                     self.inserted += 1
                     recent_box = self.treemanager.parsers[-1][0].previous_version.parent
                     lbox_len = self.lbox_length(recent_box)
                     insert_len = len(choice)
                     self.lenlog.append((lbox_len, insert_len))
-                    if valid:
+                    if valid and innervalid:
                         inserted_valid += 1
                         self.faillog.append(("ok", self.filename, repr(deleted), repr(choice)))
                     else:
@@ -261,6 +265,7 @@ class FuzzyLboxStats:
             else:
                 if debug: print "Replacing '{}' with '{}':\n    => Already deleted".format(truncate(subtree_to_text(e)), truncate(choice))
             self.undo(self.minver)
+            exprchoices = [self.mainexprs[i] for i in self.main_samples]
         if debug:
             print("Boxes inserted: {}/{}".format(self.inserted, ops))
             print("Valid insertions:", inserted_valid)
@@ -271,6 +276,9 @@ class FuzzyLboxStats:
         return (inserted_valid, inserted_error, noinsert_valid, noinsert_error, noinsert_multi)
 
     def undo(self, version):
+        # reset everything
+        self.reset()
+        return
         while self.treemanager.version != version:
             before = self.treemanager.version
             self.treemanager.version -= 1
@@ -280,14 +288,15 @@ class FuzzyLboxStats:
                 exit("Error")
 
     def lbox_length(self, root):
-        l = 0
+        l = []
         node = root.children[0]
         eos = root.children[-1]
         while node is not eos:
             if not node.deleted:
-                l += len(node.symbol.name)
+                l.append(node.symbol.name)
             node = node.next_term
-        return l
+        s = "".join(l).strip()
+        return len(s)
 
 def run_multi(name, main, sub, folder, ext, exprs, mrepl, srepl=None, config=None):
     if config:
