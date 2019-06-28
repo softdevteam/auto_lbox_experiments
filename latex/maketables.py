@@ -57,7 +57,9 @@ class TableMaker:
                 # add data from function benchmarks
                 funcdata, totalf = self.collect_stats_from_faillog("{}/func_{}/{}".format(EXPERIMENT_DIR, heuristic, c))
                 for k in funcdata:
-                    data[c][k] = (data[c][k] + funcdata[k]) / 2
+                    data[c][k] += funcdata[k]
+            data[c]["total"] = totale + totalf
+            data[c]["totalnovalid"] = totale + totalf - data[c]["novalid"]
             corpus[c] = totale + totalf
         return data, corpus
 
@@ -113,9 +115,6 @@ class TableMaker:
 
         assert len(insdata) == len(inslen)
         total = len(insdata)
-        if total > 0:
-            for key in d:
-                d[key] = float(d[key]) / total
         return d, total
 
     def collect_stats(self, filename):
@@ -190,13 +189,15 @@ class Valid(TableMaker):
 
     def make_row(self, folder, data):
         l = []
-        overall = 0
+        overallv = 0
+        overallt = 0
         for comp in self.benchmarks:
             wanted = data[comp]["valid"] + data[comp]["novalid"] + data[comp]["nomulti"]
-            overall += wanted
-            l.append("{:.1f}\%".format(wanted * 100))
+            overallv += wanted
+            overallt += data[comp]["total"]
+            l.append("{:.1f}\%".format(float(wanted) / data[comp]["total"] * 100))
             self.add_macro(folder, comp, l[-1])
-        l.append("{:.1f}\%".format(overall / len(l) * 100))
+        l.append("{:.1f}\%".format(float(overallv) / overallt * 100))
         self.add_macro(folder, "overall", l[-1])
         return "    {} & {} \\\\".format(heu_names[folder], " & ".join(l))
 
@@ -238,11 +239,20 @@ class Breakdown(TableMaker):
     def make_row(self, folder, data):
         l = []
         for x in ["validsame", "validdiff", "invaliddiff", "novalid", "noerror", "nomulti"]:
-            total = 0
+            totalv = 0
+            totalt = 0
             for bench in data:
-                total += data[bench][x]
-            l.append("{:.1f}\%".format(total / len(data) * 100))
+                totalv += data[bench][x]
+                totalt += data[bench]["total"]
+            l.append("{:.1f}\%".format((float(totalv) / totalt) * 100))
             self.add_macro(folder, x, l[-1])
+
+        excludev = 0
+        excludet = 0
+        for bench in data:
+            excludev += data[bench]["validsame"]
+            excludet += data[bench]["totalnovalid"]
+        self.add_macro(folder, "exclude", "{:.1f}\%".format((float(excludev) / excludet) * 100))
         return "    {} & {} \\\\".format(heu_names[folder], " & ".join(l))
 
     def cell_alignment(self):
@@ -271,7 +281,7 @@ class BenchmarkBreakdown(TableMaker):
         for bench in self.benchmarks:
             l = []
             for x in ["validsame", "validdiff", "invaliddiff", "novalid", "noerror", "nomulti"]:
-                l.append("{:.1f}\%".format(data[bench][x] * 100))
+                l.append("{:.1f}\%".format(float(data[bench][x]) / data[bench]["total"] * 100))
             rows.append("    {} & {} \\\\".format(bench_names[bench[:-9]], " & ".join(l)))
         return rows
 
