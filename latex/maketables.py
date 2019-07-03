@@ -52,10 +52,10 @@ class TableMaker:
         for c in self.benchmarks:
             totale = totalf = 0
             # collect data from expression benchmarks
-            data[c], totale = self.collect_stats("{}/{}/{}".format(EXPERIMENT_DIR, heuristic, c))
+            data[c], totale = self.collect_stats_from_faillog("{}/{}/{}".format(EXPERIMENT_DIR, heuristic, c))
             if os.path.isdir("{}/func_{}/".format(EXPERIMENT_DIR, heuristic)):
                 # add data from function benchmarks
-                funcdata, totalf = self.collect_stats("{}/func_{}/{}".format(EXPERIMENT_DIR, heuristic, c))
+                funcdata, totalf = self.collect_stats_from_faillog("{}/func_{}/{}".format(EXPERIMENT_DIR, heuristic, c))
                 for k in funcdata:
                     data[c][k] = (data[c][k] + funcdata[k]) / 2
             corpus[c] = totale + totalf
@@ -68,6 +68,55 @@ class TableMaker:
             with open("{}/{}/{}".format(EXPERIMENT_DIR, heuristic, clen)) as f:
                 data[c] = json.load(f)
         return data
+
+    def collect_stats_from_faillog(self, filename):
+        filename = filename.replace("log.json", "fail.json")
+        if not os.path.exists(filename):
+            return {}, 0
+        d = {
+            "valid": 0,
+            "invalid": 0,
+            "novalid": 0,
+            "noerror": 0,
+            "nomulti": 0,
+            "validsame": 0,
+            "invalidsame": 0,
+            "validdiff": 0,
+            "invaliddiff": 0
+
+        }
+        with open(filename) as f:
+            insdata = json.load(f)
+        with open(filename.replace("fail.json", "len.json")) as f2:
+            inslen = json.load(f2)
+
+        #print(filename)
+        for i, entry in enumerate(insdata):
+            if entry[0] == "ok":
+                d["valid"] += 1
+                if inslen[i][0] == inslen[i][1]:
+                    d["validsame"] += 1
+                else:
+                    d["validdiff"] += 1
+            elif entry[0] == "inerr":
+                d["invalid"] += 1
+                if inslen[i][0] == inslen[i][1]:
+                    d["invalidsame"] += 1
+                else:
+                    d["invaliddiff"] += 1
+            elif entry[0] == "multi":
+                d["nomulti"] += 1
+            elif entry[0] == "error":
+                d["noerror"] += 1
+            elif entry[0] == "valid":
+                d["novalid"] += 1
+
+        assert len(insdata) == len(inslen)
+        total = len(insdata)
+        if total > 0:
+            for key in d:
+                d[key] = float(d[key]) / total
+        return d, total
 
     def collect_stats(self, filename):
         if not os.path.exists(filename):
@@ -94,6 +143,7 @@ class TableMaker:
                     invaliddiff += l[i][1]
             assert validsame + validdiff == valid
             assert invalidsame + invaliddiff == invalid
+            assert invalidsame == 0
             d["valid"]   = float(valid)   / total
             d["invalid"] = float(invalid) / total
             d["novalid"] = float(novalid) / total
