@@ -327,6 +327,7 @@ def run_single(filename, main, sub, exprs, mrepl, srepl, msample=None, ssample=N
 
 def run_config(name, main, sub, configdir, exprs, mrepl, srepl=None):
     with open("{}/{}_run.json".format(configdir, name)) as f:
+        runcfg = []
         log = []
         faillog = []
         multilog = []
@@ -335,9 +336,11 @@ def run_config(name, main, sub, configdir, exprs, mrepl, srepl=None):
             c, r, f, m = run_single(filename, main, sub, exprs, mrepl, srepl, msample, ssample)
             if c is None:
                 continue
+            runcfg.append(c)
             log.append(r)
             faillog.extend(f)
             multilog.extend(m)
+        with open("{}_run.json".format(name), "w") as f: json.dump(runcfg, f, indent=0)
         with open("{}_log.json".format(name), "w") as f: json.dump(log, f)
         with open("{}_fail.json".format(name), "w") as f: json.dump(faillog, f, indent=0)
         with open("{}_multi.json".format(name), "w") as f: json.dump(multilog, f, indent=0)
