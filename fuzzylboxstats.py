@@ -68,7 +68,7 @@ class FuzzyLboxStats:
         self.treemanager.option_autolbox_insert = True
         self.langname = main.name
 
-        parser.setup_autolbox(main.name)
+        parser.setup_autolbox(main.name, lexer)
         self.sub = sub
 
         self.inserted = 0
@@ -310,7 +310,8 @@ def run_single(filename, main, sub, exprs, mrepl, srepl, msample=None, ssample=N
         fuz.load_expr_from_json(exprs)
         r = fuz.run(msample, ssample)
     except Exception, e:
-        # We only care about files that parse initially
+        # Errors here point to a bug in Eco, so it's better to just exclude
+        # this file from the experiment.
         sys.stdout.write("s")
         sys.stdout.flush()
         return None, None, None, None
@@ -358,11 +359,12 @@ def create_composition(smain, ssub, mainexpr, gmain, gsub, subexpr, histtok):
 
 if __name__ == "__main__":
     import sys
+    import config
     args = sys.argv
     wd = "/home/lukas/research/auto_lbox_experiments/"
 
     if len(args) < 8:
-        print("Missing arguments.\nUsage: python2 fuzzylboxstats.py MAINGRM MAINRULE SUBGRM SUBRULE FILES EXTENSION REPLACMENTS HISTORICTOKEN [RERUNDIR]")
+        print("Missing arguments.\nUsage: python2 fuzzylboxstats.py MAINGRM MAINRULE SUBGRM SUBRULE FILES EXTENSION REPLACMENTS HISTORICTOKEN HEURISTIC [RERUNDIR]")
         exit()
 
     maingrm = args[1]
@@ -376,8 +378,25 @@ if __name__ == "__main__":
         histtok = True
     else:
         histtok = False
-    if len(args) > 9:
-        rerunconfig = wd + args[9]
+    if args[9] == "all":
+        config.AUTOLBOX_HEURISTIC_LINE = True
+        config.AUTOLBOX_HEURISTIC_HIST = True
+        config.AUTOLBOX_HEURISTIC_STACK = True
+    elif args[9] == "line":
+        config.AUTOLBOX_HEURISTIC_LINE = True
+        config.AUTOLBOX_HEURISTIC_HIST = False
+        config.AUTOLBOX_HEURISTIC_STACK = False
+    elif args[9] == "hist":
+        config.AUTOLBOX_HEURISTIC_LINE = False
+        config.AUTOLBOX_HEURISTIC_HIST = True
+        config.AUTOLBOX_HEURISTIC_STACK = False
+    elif args[9] == "stack":
+        config.AUTOLBOX_HEURISTIC_LINE = False
+        config.AUTOLBOX_HEURISTIC_HIST = False
+        config.AUTOLBOX_HEURISTIC_STACK = True
+
+    if len(args) > 10:
+        rerunconfig = wd + args[10]
     else:
         rerunconfig = None
     if subrule == "None":
