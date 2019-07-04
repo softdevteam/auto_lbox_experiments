@@ -1,4 +1,4 @@
-import random, json, glob, os
+import random, json, glob, os, time
 from grammars.grammars import lang_dict, EcoFile
 from treemanager import TreeManager
 from grammar_parser.gparser import Nonterminal, Terminal
@@ -76,6 +76,7 @@ class FuzzyLboxStats:
         self.faillog = []
         self.multilog = []
         self.lenlog = []
+        self.timelog = []
 
     def load_main(self, filename):
         self.filename = filename
@@ -223,7 +224,9 @@ class FuzzyLboxStats:
             if deleted:
                 choice = replchoices[i]
                 if debug: print "  Replacing '{}' with '{}':".format(truncate(deleted), choice)
+                start = time.time()
                 self.insert_python_expression(choice)
+                self.timelog.append(time.time() - start)
                 valid = self.parser.last_status
                 if before == len(self.treemanager.parsers):
                     self.lenlog.append((0, 0))
@@ -244,10 +247,10 @@ class FuzzyLboxStats:
                 else:
                     result = "Box inserted"
                     self.inserted += 1
-                    recent_box = self.treemanager.parsers[-1].previous_version.parent
-                    lbox_len = len(self.lbox_length(recent_box))
-                    self.lenlog.append((lbox_len, insert_len))
+                    recent_box = self.treemanager.parsers[-1][0].previous_version.parent
+                    lbox_len = self.lbox_length(recent_box)
                     insert_len = len(choice)
+                    self.lenlog.append((lbox_len, insert_len))
                     if valid:
                         inserted_valid += 1
                         self.faillog.append(("ok", self.filename, repr(deleted), repr(choice)))
@@ -293,6 +296,7 @@ def run_multi(name, main, sub, folder, ext, exprs, mrepl, srepl=None, config=Non
     runcfg = []
     results = []
     lenlog = []
+    timelog = []
     faillog = []
     multilog = []
     files = [y for x in os.walk(folder) for y in glob.glob(os.path.join(x[0], ext))]
@@ -301,13 +305,14 @@ def run_multi(name, main, sub, folder, ext, exprs, mrepl, srepl=None, config=Non
         files = random.sample(files, MAX_FILES)
     i = 0
     for filename in files:
-        c, r, f, m, l = run_single(filename, main, sub, exprs, mrepl, srepl)
+        c, r, f, m, l, t = run_single(filename, main, sub, exprs, mrepl, srepl)
         if c is None:
             continue
         runcfg.append(c)
         results.append(r)
         faillog.extend(f)
         lenlog.extend(l)
+        timelog.extend(t)
         multilog.extend(m)
         i = i + sum(r)
         if i > 1000:
@@ -317,6 +322,7 @@ def run_multi(name, main, sub, folder, ext, exprs, mrepl, srepl=None, config=Non
     with open("{}_log.json".format(name), "w") as f: json.dump(results, f)
     with open("{}_fail.json".format(name), "w") as f: json.dump(faillog, f, indent=0)
     with open("{}_len.json".format(name), "w") as f: json.dump(lenlog, f, indent=0)
+    with open("{}_time.json".format(name), "w") as f: json.dump(timelog, f, indent=0)
     with open("{}_multi.json".format(name), "w") as f: json.dump(multilog, f, indent=0)
     print
 
@@ -333,7 +339,7 @@ def run_single(filename, main, sub, exprs, mrepl, srepl, msample=None, ssample=N
         # this file from the experiment.
         sys.stdout.write("s")
         sys.stdout.flush()
-        return None, None, None, None
+        return None, None, None, None, None, None
     if r[1] > 0 or r[3] > 0:
         # insert_error and noinsert_error
         sys.stdout.write("x")
@@ -342,7 +348,7 @@ def run_single(filename, main, sub, exprs, mrepl, srepl, msample=None, ssample=N
         sys.stdout.write(".")
         sys.stdout.flush()
     config = (filename, fuz.main_samples, fuz.sub_samples)
-    return config, r, fuz.faillog, fuz.multilog, fuz.lenlog
+    return config, r, fuz.faillog, fuz.multilog, fuz.lenlog, fuz.timelog
 
 def run_config(name, main, sub, configdir, exprs, mrepl, srepl=None):
     with open("{}/{}_run.json".format(configdir, name)) as f:
@@ -350,21 +356,24 @@ def run_config(name, main, sub, configdir, exprs, mrepl, srepl=None):
         log = []
         faillog = []
         lenlog = []
+        timelog = []
         multilog = []
         config = json.load(f)
         for filename, msample, ssample in config:
-            c, r, f, m, l = run_single(filename, main, sub, exprs, mrepl, srepl, msample, ssample)
+            c, r, f, m, l, t = run_single(filename, main, sub, exprs, mrepl, srepl, msample, ssample)
             if c is None:
                 continue
             runcfg.append(c)
             log.append(r)
             lenlog.extend(l)
+            timelog.extend(t)
             faillog.extend(f)
             multilog.extend(m)
         with open("{}_run.json".format(name), "w") as f: json.dump(runcfg, f, indent=0)
         with open("{}_log.json".format(name), "w") as f: json.dump(log, f)
         with open("{}_fail.json".format(name), "w") as f: json.dump(faillog, f, indent=0)
         with open("{}_len.json".format(name), "w") as f: json.dump(lenlog, f, indent=0)
+        with open("{}_time.json".format(name), "w") as f: json.dump(timelog, f, indent=0)
         with open("{}_multi.json".format(name), "w") as f: json.dump(multilog, f, indent=0)
         print
 
