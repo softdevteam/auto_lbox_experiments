@@ -29,7 +29,7 @@ EXPERIMENT_DIR = "../logs_paper/"
 class TableMaker:
 
     def __init__(self, folders):
-        self.makros = []
+        self.macros = []
         self.corpus = {}
         self.inslen = {}
         self.get_benchmarks(folders[0])
@@ -41,9 +41,9 @@ class TableMaker:
             rows.append(self.make_row(folder, data))
         table = self.make_table(rows)
         print(table)
-        # add makros
+        # add macros
         with open("experimentstats.tex", "a") as f:
-            f.write("\n".join(self.makros))
+            f.write("\n".join(self.macros))
             f.write("\n")
 
     def parse(self, heuristic):
@@ -195,9 +195,9 @@ class Valid(TableMaker):
             wanted = data[comp]["valid"] + data[comp]["novalid"] + data[comp]["nomulti"]
             overall += wanted
             l.append("{:.1f}\%".format(wanted * 100))
-            self.add_makro(folder, comp, l[-1])
+            self.add_macro(folder, comp, l[-1])
         l.append("{:.1f}\%".format(overall / len(l) * 100))
-        self.add_makro(folder, "overall", l[-1])
+        self.add_macro(folder, "overall", l[-1])
         return "    {} & {} \\\\".format(heu_names[folder], " & ".join(l))
 
     def cell_alignment(self):
@@ -209,7 +209,7 @@ class Valid(TableMaker):
 
     def make_totalrow(self):
         overall = sum(self.corpus["all"].values())
-        self.makros.append("\\newcommand{{\\totalinsertions}}{{{:,}\\xspace}}".format(overall))
+        self.macros.append("\\newcommand{{\\totalinsertions}}{{{:,}\\xspace}}".format(overall))
         return "\# Tests & {} & {:,} \\\\".format(" & ".join([str(self.corpus["all"][b]) for b in self.benchmarks]), overall)
 
     def make_table(self, rows):
@@ -228,10 +228,10 @@ class Valid(TableMaker):
         """.format(cellalign=cellalign, header=header, totals=totals, rows = "\n".join(rows))
         return s
 
-    def add_makro(self, heu, bench, value):
+    def add_macro(self, heu, bench, value):
         if bench != "overall":
             bench = bench_names[bench[:-9]].lower()
-        self.makros.append("\\newcommand{{\\valid{heu}{bench}}}{{{value}\\xspace}}".format(heu=heu, bench=bench, value=value))
+        self.macros.append("\\newcommand{{\\valid{heu}{bench}}}{{{value}\\xspace}}".format(heu=heu, bench=bench, value=value))
 
 class Breakdown(TableMaker):
 
@@ -242,7 +242,7 @@ class Breakdown(TableMaker):
             for bench in data:
                 total += data[bench][x]
             l.append("{:.1f}\%".format(total / len(data) * 100))
-            self.add_makro(folder, x, l[-1])
+            self.add_macro(folder, x, l[-1])
         return "    {} & {} \\\\".format(heu_names[folder], " & ".join(l))
 
     def cell_alignment(self):
@@ -254,8 +254,8 @@ class Breakdown(TableMaker):
             l.append("\multicolumn{1}{p{2cm}}{\centering %s}" % label)
         return "    & {}".format(" & ".join(l))
 
-    def add_makro(self, heu, outcome, value):
-        self.makros.append("\\newcommand{{\\breakdown{heu}{outcome}}}{{{value}\\xspace}}".format(heu=heu, outcome=outcome, value=value))
+    def add_macro(self, heu, outcome, value):
+        self.macros.append("\\newcommand{{\\breakdown{heu}{outcome}}}{{{value}\\xspace}}".format(heu=heu, outcome=outcome, value=value))
 
 class BenchmarkBreakdown(TableMaker):
 
