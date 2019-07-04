@@ -55,9 +55,10 @@ class TableMaker:
             data[c], totale = self.collect_stats_from_faillog("{}/{}/{}".format(EXPERIMENT_DIR, heuristic, c))
             if os.path.isdir("{}/func_{}/".format(EXPERIMENT_DIR, heuristic)):
                 # add data from function benchmarks
-                funcdata, totalf = self.collect_stats_from_faillog("{}/func_{}/{}".format(EXPERIMENT_DIR, heuristic, c))
-                for k in funcdata:
-                    data[c][k] += funcdata[k]
+                if c[:-9] not in ["sqlitejava15", "sqlitelua5_3", "sqlitephp", "phpsqlite", "java15sqlite", "lua5_3sqlite"]:
+                    funcdata, totalf = self.collect_stats_from_faillog("{}/func_{}/{}".format(EXPERIMENT_DIR, heuristic, c))
+                    for k in funcdata:
+                        data[c][k] += funcdata[k]
             data[c]["total"] = totale + totalf
             data[c]["totalnovalid"] = totale + totalf - data[c]["novalid"]
             corpus[c] = totale + totalf
@@ -73,8 +74,6 @@ class TableMaker:
 
     def collect_stats_from_faillog(self, filename):
         filename = filename.replace("log.json", "fail.json")
-        if not os.path.exists(filename):
-            return {}, 0
         d = {
             "valid": 0,
             "invalid": 0,
@@ -118,8 +117,6 @@ class TableMaker:
         return d, total
 
     def collect_stats(self, filename):
-        if not os.path.exists(filename):
-            return {}, 0
         d = {}
         with open(filename) as f:
             l = json.load(f)
