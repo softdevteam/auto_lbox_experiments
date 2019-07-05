@@ -1,4 +1,4 @@
-import random, json, glob, os
+import random, json, glob, os, time
 from grammars.grammars import lang_dict, EcoFile
 from treemanager import TreeManager
 from grammar_parser.gparser import Nonterminal, Terminal
@@ -68,13 +68,15 @@ class FuzzyLboxStats:
         self.treemanager.option_autolbox_insert = True
         self.langname = main.name
 
-        parser.setup_autolbox(main.name)
+        parser.setup_autolbox(main.name, lexer)
         self.sub = sub
 
         self.inserted = 0
 
         self.faillog = []
         self.multilog = []
+        self.lenlog = []
+        self.timelog = []
 
     def load_main(self, filename):
         self.filename = filename
@@ -88,9 +90,11 @@ class FuzzyLboxStats:
 
     def reset(self):
         self.parser.reset()
+        self.ast = self.parser.previous_version
         self.treemanager = TreeManager()
         self.treemanager.add_parser(self.parser, self.lexer, self.langname)
         self.treemanager.import_file(self.content)
+        self.treemanager.option_autolbox_insert = True
         self.mainexprs = self.find_nonterms_by_name(self.treemanager, self.main_repl_str)
 
     def load_expr(self, filename):
@@ -214,17 +218,21 @@ class FuzzyLboxStats:
             self.sub_samples = sub_samples
             replchoices = [self.replexprs[i] for i in sub_samples]
 
-        for i, e in enumerate(exprchoices):
+        for i in range(len(exprchoices)):
+            e = exprchoices[i]
             if e.get_root() is None:
                 continue
             before = len(self.treemanager.parsers)
             deleted = self.delete_expr(e)
             if deleted:
-                choice = replchoices[i]
-                if debug: print "  Replacing '{}' with '{}':".format(truncate(deleted), choice)
+                choice = replchoices[i].strip()
+                if debug: print "  Replacing '{}' with '{}':".format(repr(truncate(deleted)), repr(choice))
+                start = time.time()
                 self.insert_python_expression(choice)
+                self.timelog.append(time.time() - start)
                 valid = self.parser.last_status
                 if before == len(self.treemanager.parsers):
+                    self.lenlog.append((0, 0))
                     if len(self.parser.error_nodes) > 0 and self.parser.error_nodes[0].autobox and len(self.parser.error_nodes[0].autobox) > 1:
                         noinsert_multi += 1
                         result = "No box inserted (Multi)"
@@ -241,8 +249,13 @@ class FuzzyLboxStats:
                         self.faillog.append(("error", self.filename, repr(deleted), repr(choice)))
                 else:
                     result = "Box inserted"
+                    innervalid = self.treemanager.parsers[-1][0].last_status
                     self.inserted += 1
-                    if valid:
+                    recent_box = self.treemanager.parsers[-1][0].previous_version.parent
+                    lbox_len = self.lbox_length(recent_box)
+                    insert_len = len(choice)
+                    self.lenlog.append((lbox_len, insert_len))
+                    if valid and innervalid:
                         inserted_valid += 1
                         self.faillog.append(("ok", self.filename, repr(deleted), repr(choice)))
                     else:
@@ -252,6 +265,7 @@ class FuzzyLboxStats:
             else:
                 if debug: print "Replacing '{}' with '{}':\n    => Already deleted".format(truncate(subtree_to_text(e)), truncate(choice))
             self.undo(self.minver)
+            exprchoices = [self.mainexprs[i] for i in self.main_samples]
         if debug:
             print("Boxes inserted: {}/{}".format(self.inserted, ops))
             print("Valid insertions:", inserted_valid)
@@ -262,6 +276,9 @@ class FuzzyLboxStats:
         return (inserted_valid, inserted_error, noinsert_valid, noinsert_error, noinsert_multi)
 
     def undo(self, version):
+        # reset everything
+        self.reset()
+        return
         while self.treemanager.version != version:
             before = self.treemanager.version
             self.treemanager.version -= 1
@@ -270,12 +287,25 @@ class FuzzyLboxStats:
             if before == self.treemanager.version:
                 exit("Error")
 
+    def lbox_length(self, root):
+        l = []
+        node = root.children[0]
+        eos = root.children[-1]
+        while node is not eos:
+            if not node.deleted:
+                l.append(node.symbol.name)
+            node = node.next_term
+        s = "".join(l).strip()
+        return len(s)
+
 def run_multi(name, main, sub, folder, ext, exprs, mrepl, srepl=None, config=None):
     if config:
         run_config(name, main, sub, config, exprs, mrepl)
         return
     runcfg = []
     results = []
+    lenlog = []
+    timelog = []
     faillog = []
     multilog = []
     files = [y for x in os.walk(folder) for y in glob.glob(os.path.join(x[0], ext))]
@@ -284,12 +314,14 @@ def run_multi(name, main, sub, folder, ext, exprs, mrepl, srepl=None, config=Non
         files = random.sample(files, MAX_FILES)
     i = 0
     for filename in files:
-        c, r, f, m = run_single(filename, main, sub, exprs, mrepl, srepl)
+        c, r, f, m, l, t = run_single(filename, main, sub, exprs, mrepl, srepl)
         if c is None:
             continue
         runcfg.append(c)
         results.append(r)
         faillog.extend(f)
+        lenlog.extend(l)
+        timelog.extend(t)
         multilog.extend(m)
         i = i + sum(r)
         if i > 1000:
@@ -298,6 +330,8 @@ def run_multi(name, main, sub, folder, ext, exprs, mrepl, srepl=None, config=Non
     with open("{}_run.json".format(name), "w") as f: json.dump(runcfg, f, indent=0)
     with open("{}_log.json".format(name), "w") as f: json.dump(results, f)
     with open("{}_fail.json".format(name), "w") as f: json.dump(faillog, f, indent=0)
+    with open("{}_len.json".format(name), "w") as f: json.dump(lenlog, f, indent=0)
+    with open("{}_time.json".format(name), "w") as f: json.dump(timelog, f, indent=0)
     with open("{}_multi.json".format(name), "w") as f: json.dump(multilog, f, indent=0)
     print
 
@@ -310,10 +344,11 @@ def run_single(filename, main, sub, exprs, mrepl, srepl, msample=None, ssample=N
         fuz.load_expr_from_json(exprs)
         r = fuz.run(msample, ssample)
     except Exception, e:
-        # We only care about files that parse initially
+        # Errors here point to a bug in Eco, so it's better to just exclude
+        # this file from the experiment.
         sys.stdout.write("s")
         sys.stdout.flush()
-        return None, None, None, None
+        return None, None, None, None, None, None
     if r[1] > 0 or r[3] > 0:
         # insert_error and noinsert_error
         sys.stdout.write("x")
@@ -322,23 +357,32 @@ def run_single(filename, main, sub, exprs, mrepl, srepl, msample=None, ssample=N
         sys.stdout.write(".")
         sys.stdout.flush()
     config = (filename, fuz.main_samples, fuz.sub_samples)
-    return config, r, fuz.faillog, fuz.multilog
+    return config, r, fuz.faillog, fuz.multilog, fuz.lenlog, fuz.timelog
 
 def run_config(name, main, sub, configdir, exprs, mrepl, srepl=None):
     with open("{}/{}_run.json".format(configdir, name)) as f:
+        runcfg = []
         log = []
         faillog = []
+        lenlog = []
+        timelog = []
         multilog = []
         config = json.load(f)
         for filename, msample, ssample in config:
-            c, r, f, m = run_single(filename, main, sub, exprs, mrepl, srepl, msample, ssample)
+            c, r, f, m, l, t = run_single(filename, main, sub, exprs, mrepl, srepl, msample, ssample)
             if c is None:
                 continue
+            runcfg.append(c)
             log.append(r)
+            lenlog.extend(l)
+            timelog.extend(t)
             faillog.extend(f)
             multilog.extend(m)
+        with open("{}_run.json".format(name), "w") as f: json.dump(runcfg, f, indent=0)
         with open("{}_log.json".format(name), "w") as f: json.dump(log, f)
         with open("{}_fail.json".format(name), "w") as f: json.dump(faillog, f, indent=0)
+        with open("{}_len.json".format(name), "w") as f: json.dump(lenlog, f, indent=0)
+        with open("{}_time.json".format(name), "w") as f: json.dump(timelog, f, indent=0)
         with open("{}_multi.json".format(name), "w") as f: json.dump(multilog, f, indent=0)
         print
 
@@ -358,11 +402,12 @@ def create_composition(smain, ssub, mainexpr, gmain, gsub, subexpr, histtok):
 
 if __name__ == "__main__":
     import sys
+    import config
     args = sys.argv
     wd = "/home/lukas/research/auto_lbox_experiments/"
 
     if len(args) < 8:
-        print("Missing arguments.\nUsage: python2 fuzzylboxstats.py MAINGRM MAINRULE SUBGRM SUBRULE FILES EXTENSION REPLACMENTS HISTORICTOKEN [RERUNDIR]")
+        print("Missing arguments.\nUsage: python2 fuzzylboxstats.py MAINGRM MAINRULE SUBGRM SUBRULE FILES EXTENSION REPLACMENTS HISTORICTOKEN HEURISTIC [RERUNDIR]")
         exit()
 
     maingrm = args[1]
@@ -376,8 +421,25 @@ if __name__ == "__main__":
         histtok = True
     else:
         histtok = False
-    if len(args) > 9:
-        rerunconfig = wd + args[9]
+    if args[9] == "all":
+        config.AUTOLBOX_HEURISTIC_LINE = True
+        config.AUTOLBOX_HEURISTIC_HIST = True
+        config.AUTOLBOX_HEURISTIC_STACK = True
+    elif args[9] == "line":
+        config.AUTOLBOX_HEURISTIC_LINE = True
+        config.AUTOLBOX_HEURISTIC_HIST = False
+        config.AUTOLBOX_HEURISTIC_STACK = False
+    elif args[9] == "hist":
+        config.AUTOLBOX_HEURISTIC_LINE = False
+        config.AUTOLBOX_HEURISTIC_HIST = True
+        config.AUTOLBOX_HEURISTIC_STACK = False
+    elif args[9] == "stack":
+        config.AUTOLBOX_HEURISTIC_LINE = False
+        config.AUTOLBOX_HEURISTIC_HIST = False
+        config.AUTOLBOX_HEURISTIC_STACK = True
+
+    if len(args) > 10:
+        rerunconfig = wd + args[10]
     else:
         rerunconfig = None
     if subrule == "None":

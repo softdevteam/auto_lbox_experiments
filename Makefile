@@ -1,5 +1,6 @@
 RERUNDIR=
 HISTOK=True
+HEURISTIC=all
 
 all: luastmts.json javastmts.json phpstmts.json sqlstmts.json phpfiles/about.php sqlfiles/99.sql
 	cd eco/lib/eco; pypy fuzzylboxstats.py lua ../../../log_limit_on_090419
@@ -23,38 +24,38 @@ comp_funcs: java_func php_func lua_func
 # Compose functions
 
 java_func: javastdlib5 phpfuncs.json luafuncs.json
-	cd eco/lib/eco; pypy fuzzylboxstats.py java15.eco method_declaration php.eco    class_statement javastdlib5/ java phpfuncs.json $(HISTOK) $(RERUNDIR)
-	cd eco/lib/eco; pypy fuzzylboxstats.py java15.eco method_declaration lua5_3.eco stat            javastdlib5/ java luafuncs.json $(HISTOK) $(RERUNDIR)
+	cd eco/lib/eco; pypy fuzzylboxstats.py java15.eco method_declaration php.eco    class_statement javastdlib5/ java phpfuncs.json $(HISTOK) $(HEURISTIC) $(RERUNDIR)
+	cd eco/lib/eco; pypy fuzzylboxstats.py java15.eco method_declaration lua5_3.eco stat            javastdlib5/ java luafuncs.json $(HISTOK) $(HEURISTIC) $(RERUNDIR)
 
 php_func: phpfiles luafuncs.json javafuncs.json
-	cd eco/lib/eco; pypy fuzzylboxstats.py php.eco class_statement lua5_3.eco stat               phpfiles/ php luafuncs.json $(HISTOK) $(RERUNDIR)
-	cd eco/lib/eco; pypy fuzzylboxstats.py php.eco class_statement java15.eco method_declaration phpfiles/ php javafuncs.json $(HISTOK) $(RERUNDIR)
+	cd eco/lib/eco; pypy fuzzylboxstats.py php.eco class_statement lua5_3.eco stat               phpfiles/ php luafuncs.json $(HISTOK) $(HEURISTIC) $(RERUNDIR)
+	cd eco/lib/eco; pypy fuzzylboxstats.py php.eco class_statement java15.eco method_declaration phpfiles/ php javafuncs.json $(HISTOK) $(HEURISTIC) $(RERUNDIR)
 
 lua_func: lua phpfuncs.json javafuncs.json
-	cd eco/lib/eco; pypy fuzzylboxstats.py lua5_3.eco stat php.eco    class_statement    lua/testes lua phpfuncs.json $(HISTOK) $(RERUNDIR)
-	cd eco/lib/eco; pypy fuzzylboxstats.py lua5_3.eco stat java15.eco method_declaration lua/testes lua javafuncs.json $(HISTOK) $(RERUNDIR)
+	cd eco/lib/eco; pypy fuzzylboxstats.py lua5_3.eco stat php.eco    class_statement    lua/testes lua phpfuncs.json $(HISTOK) $(HEURISTIC) $(RERUNDIR)
+	cd eco/lib/eco; pypy fuzzylboxstats.py lua5_3.eco stat java15.eco method_declaration lua/testes lua javafuncs.json $(HISTOK) $(HEURISTIC) $(RERUNDIR)
 
 # Compose expressions
 
 java_expr: javastdlib5 phpexprs.json sqlstmts.json luaexprs.json
-	cd eco/lib/eco; pypy fuzzylboxstats.py java15.eco unary_expression php.eco    expr_without_variable javastdlib5/ java phpexprs.json $(HISTOK) $(RERUNDIR)
-	cd eco/lib/eco; pypy fuzzylboxstats.py java15.eco unary_expression sqlite.eco None                  javastdlib5/ java sqlstmts.json $(HISTOK) $(RERUNDIR)
-	cd eco/lib/eco; pypy fuzzylboxstats.py java15.eco unary_expression lua5_3.eco explist               javastdlib5/ java luaexprs.json $(HISTOK) $(RERUNDIR)
+	cd eco/lib/eco; pypy fuzzylboxstats.py java15.eco assignment_expression php.eco    expr_without_variable javastdlib5/ java phpexprs.json $(HISTOK) $(HEURISTIC) $(RERUNDIR)
+	cd eco/lib/eco; pypy fuzzylboxstats.py java15.eco assignment_expression sqlite.eco cmdx                  javastdlib5/ java sqlstmts.json $(HISTOK) $(HEURISTIC) $(RERUNDIR)
+	cd eco/lib/eco; pypy fuzzylboxstats.py java15.eco assignment_expression lua5_3.eco explist               javastdlib5/ java luaexprs.json $(HISTOK) $(HEURISTIC) $(RERUNDIR)
 
 php_expr: phpfiles javaexprs.json sqlstmts.json luaexprs.json
-	cd eco/lib/eco; pypy fuzzylboxstats.py php.eco expr_without_variable java15.eco assignment_expression phpfiles/ php phpexprs.json $(HISTOK) $(RERUNDIR)
-	cd eco/lib/eco; pypy fuzzylboxstats.py php.eco expr_without_variable sqlite.eco None                  phpfiles/ php sqlstmts.json $(HISTOK) $(RERUNDIR)
-	cd eco/lib/eco; pypy fuzzylboxstats.py php.eco expr_without_variable lua5_3.eco explist               phpfiles/ php luaexprs.json $(HISTOK) $(RERUNDIR)
+	cd eco/lib/eco; pypy fuzzylboxstats.py php.eco expr_without_variable java15.eco assignment_expression phpfiles/ php javaexprs.json $(HISTOK) $(HEURISTIC) $(RERUNDIR)
+	cd eco/lib/eco; pypy fuzzylboxstats.py php.eco expr_without_variable sqlite.eco cmdx                  phpfiles/ php sqlstmts.json $(HISTOK) $(HEURISTIC) $(RERUNDIR)
+	cd eco/lib/eco; pypy fuzzylboxstats.py php.eco expr_without_variable lua5_3.eco explist               phpfiles/ php luaexprs.json $(HISTOK) $(HEURISTIC) $(RERUNDIR)
 
 lua_expr: lua javaexprs.json phpexprs.json sqlstmts.json
-	cd eco/lib/eco; pypy fuzzylboxstats.py lua5_3.eco explist java15.eco assignment_expression lua/testes lua javaexprs.json $(HISTOK) $(RERUNDIR)
-	cd eco/lib/eco; pypy fuzzylboxstats.py lua5_3.eco explist php.eco    expr_without_variable lua/testes lua phpexprs.json  $(HISTOK) $(RERUNDIR)
-	cd eco/lib/eco; pypy fuzzylboxstats.py lua5_3.eco explist sqlite.eco None                  lua/testes lua sqlstmts.json  $(HISTOK) $(RERUNDIR)
+	cd eco/lib/eco; pypy fuzzylboxstats.py lua5_3.eco explist java15.eco assignment_expression lua/testes lua javaexprs.json $(HISTOK) $(HEURISTIC) $(RERUNDIR)
+	cd eco/lib/eco; pypy fuzzylboxstats.py lua5_3.eco explist php.eco    expr_without_variable lua/testes lua phpexprs.json  $(HISTOK) $(HEURISTIC) $(RERUNDIR)
+	cd eco/lib/eco; pypy fuzzylboxstats.py lua5_3.eco explist sqlite.eco cmdx                  lua/testes lua sqlstmts.json  $(HISTOK) $(HEURISTIC) $(RERUNDIR)
 
 sql_expr: sqlfiles javaexprs.json phpexprs.json luaexprs.json
-	cd eco/lib/eco; pypy fuzzylboxstats.py sqlite.eco expr java15.eco assignment_expression sqlfiles/ sql javaexprs.json $(HISTOK) $(RERUNDIR)
-	cd eco/lib/eco; pypy fuzzylboxstats.py sqlite.eco expr php.eco    expr_without_variable sqlfiles/ sql phpexprs.json  $(HISTOK) $(RERUNDIR)
-	cd eco/lib/eco; pypy fuzzylboxstats.py sqlite.eco expr lua5_3.eco explist               sqlfiles/ sql luaexprs.json  $(HISTOK) $(RERUNDIR)
+	cd eco/lib/eco; pypy fuzzylboxstats.py sqlite.eco expr java15.eco assignment_expression sqlfiles/ sql javaexprs.json $(HISTOK) $(HEURISTIC) $(RERUNDIR)
+	cd eco/lib/eco; pypy fuzzylboxstats.py sqlite.eco expr php.eco    expr_without_variable sqlfiles/ sql phpexprs.json  $(HISTOK) $(HEURISTIC) $(RERUNDIR)
+	cd eco/lib/eco; pypy fuzzylboxstats.py sqlite.eco expr lua5_3.eco explist               sqlfiles/ sql luaexprs.json  $(HISTOK) $(HEURISTIC) $(RERUNDIR)
 
 # Dependencies
 
@@ -125,6 +126,10 @@ phpfiles: wordpress
 sqlfiles: sqlstmts.json
 	mkdir sqlfiles
 	python2 extractsqlfiles.py
+
+# Make tables
+tables:
+	cd latex; make
 
 clean:
 	rm -r sqlite/

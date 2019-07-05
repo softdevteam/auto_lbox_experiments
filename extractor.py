@@ -15,8 +15,8 @@ def subtree_to_text(subtree):
         l.append(subtree.symbol.name)
     return "".join(l)
 
-def remove_tabs_newlines(inp):
-    return inp.replace("\r","").replace("\t", "").replace("\n", "")
+def remove_tabs_newlines(inp,replnl=""):
+    return inp.replace("\r",replnl).replace("\t", "").replace("\n", replnl)
 
 def find_nonterms_by_name(tm, cond):
     l = []

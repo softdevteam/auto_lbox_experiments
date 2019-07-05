@@ -1,6 +1,9 @@
 import sys, re, os, json
-from grammars.grammars import lua
+from grammars.grammars import lang_dict
 from extractor import find_subtree, remove_tabs_newlines
+
+lua = lang_dict["Lua 5.3"]
+MAX_CHAR_LENGTH = 1000
 
 def expr_filter(n):
     return n.symbol.name == "explist"
@@ -17,7 +20,7 @@ filters = {}
 filters["expressions"] = expr_filter
 filters["functions"] = func_filter
 
-RE_CMT = re.compile("--(.*)$")
+RE_CMT = re.compile("--([^\r]*)")
 
 if __name__ == "__main__":
     target = sys.argv[1]
@@ -39,9 +42,16 @@ if __name__ == "__main__":
             for e in expr:
                 try:
                     e.decode("utf8")
+                    if len(e) > MAX_CHAR_LENGTH:
+                        # Exclude long fragments to cut down the overall
+                        # runtime of the experiment
+                        continue
                     if target == "expressions":
-                        e = remove_tabs_newlines(e)
                         e = RE_CMT.sub("", e)
+                        e = remove_tabs_newlines(e, replnl=" ")
+                    if e.startswith("[["):
+                        # ignore long bracket strings, e.g. [[string]]
+                        continue
                     results.append(e)
                 except UnicodeDecodeError:
                     # we can't deal with unicode yet

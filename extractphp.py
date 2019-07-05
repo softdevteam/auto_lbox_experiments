@@ -1,6 +1,9 @@
 import sys, re, os, json
-from grammars.grammars import php
+from grammars.grammars import lang_dict
 from extractor import find_subtree, remove_tabs_newlines
+
+php = lang_dict["PHP"]
+MAX_CHAR_LENGTH = 1000
 
 def expressions_filter(n):
     return n.symbol.name == "expr_without_variable" and n.children[0].symbol.name == "expr"
@@ -42,7 +45,9 @@ if __name__ == "__main__":
             # Exclude functions > 1000 chars
             for e in expr:
                 e = RE_CMT.sub("}", e)
-                if len(e) < 1000:
+                # Exclude long fragments to cut down the overall runtime of the
+                # experiment
+                if len(e) < MAX_CHAR_LENGTH:
                     if target == "expressions":
                         e = remove_tabs_newlines(e)
                     results.append(e)
