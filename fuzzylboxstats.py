@@ -177,7 +177,7 @@ class FuzzyLboxStats:
 
     def multi_len(self, autos):
         r = []
-        for start, end, _ in autos:
+        for start, end, _, _ in autos:
             l = 0
             while start is not end:
                 l += len(start.symbol.name)
@@ -228,6 +228,13 @@ class FuzzyLboxStats:
                 choice = replchoices[i].strip()
                 if debug: print "  Replacing '{}' with '{}':".format(repr(truncate(deleted)), repr(choice))
                 start = time.time()
+                cursor = self.treemanager.cursor
+                if cursor.node.lookup != "<ws>":
+                    # Insert a leading space in situations like `return(x)`.
+                    choice = " " + choice
+                if cursor.node.symbol.name[cursor.pos:] == "" and cursor.node.next_term.lookup != "<ws>":
+                    # Insert trailing space if there is none
+                    choice = choice + " "
                 self.insert_python_expression(choice)
                 self.timelog.append(time.time() - start)
                 valid = self.parser.last_status
