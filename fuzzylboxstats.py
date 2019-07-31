@@ -72,11 +72,7 @@ class FuzzyLboxStats:
         self.sub = sub
 
         self.inserted = 0
-
-        self.faillog = []
-        self.multilog = []
-        self.lenlog = []
-        self.timelog = []
+        self.log = []
 
     def load_main(self, filename):
         self.filename = filename
@@ -224,8 +220,11 @@ class FuzzyLboxStats:
                 continue
             before = len(self.treemanager.parsers)
             deleted = self.delete_expr(e)
+            mboxes = None
+            ilength = None
             if deleted:
                 choice = replchoices[i].strip()
+                choice_len = len(choice)
                 if debug: print "  Replacing '{}' with '{}':".format(repr(truncate(deleted)), repr(choice))
                 start = time.time()
                 cursor = self.treemanager.cursor
@@ -236,39 +235,38 @@ class FuzzyLboxStats:
                     # Insert trailing space if there is none
                     choice = choice + " "
                 self.insert_python_expression(choice)
-                self.timelog.append(time.time() - start)
+                itime = time.time() - start
                 valid = self.parser.last_status
                 if before == len(self.treemanager.parsers):
-                    self.lenlog.append((0, 0))
                     if len(self.parser.error_nodes) > 0 and self.parser.error_nodes[0].autobox and len(self.parser.error_nodes[0].autobox) > 1:
                         noinsert_multi += 1
                         result = "No box inserted (Multi)"
-                        self.faillog.append(("multi", self.filename, repr(deleted), repr(choice)))
-                        multis = self.multi_len(self.parser.error_nodes[0].autobox)
-                        self.multilog.append(multis)
+                        outcome = "multi"
+                        mboxes = self.multi_len(self.parser.error_nodes[0].autobox)
                     elif valid:
                         noinsert_valid += 1
                         result = "No box inserted (Valid)"
-                        self.faillog.append(("valid", self.filename, repr(deleted), repr(choice)))
+                        outcome = "valid"
                     else:
                         noinsert_error += 1
                         result = "No box inserted (Error)"
-                        self.faillog.append(("error", self.filename, repr(deleted), repr(choice)))
+                        outcome = "error"
                 else:
                     result = "Box inserted"
                     innervalid = self.treemanager.parsers[-1][0].last_status
                     self.inserted += 1
                     recent_box = self.treemanager.parsers[-1][0].previous_version.parent
                     lbox_len = self.lbox_length(recent_box)
-                    insert_len = len(choice)
-                    self.lenlog.append((lbox_len, insert_len))
+                    ilength = (lbox_len, choice_len)
                     if valid and innervalid:
                         inserted_valid += 1
-                        self.faillog.append(("ok", self.filename, repr(deleted), repr(choice)))
+                        outcome = "ok"
                     else:
                         inserted_error += 1
-                        self.faillog.append(("inerr", self.filename, repr(deleted), repr(choice)))
+                        outcome = "inerr"
                 if debug: print "    => {} ({})".format(result, valid)
+                nlboxes = len(self.treemanager.parsers)
+                self.log.append([self.filename, repr(deleted), repr(choice), outcome, itime, mboxes, ilength, nlboxes])
             else:
                 if debug: print "Replacing '{}' with '{}':\n    => Already deleted".format(truncate(subtree_to_text(e)), truncate(choice))
             self.undo(self.minver)
@@ -311,35 +309,25 @@ def run_multi(name, main, sub, folder, ext, exprs, mrepl, srepl=None, config=Non
         return
     runcfg = []
     results = []
-    lenlog = []
-    timelog = []
-    faillog = []
-    multilog = []
+    log = []
     files = [y for x in os.walk(folder) for y in glob.glob(os.path.join(x[0], ext))]
     if len(files) > MAX_FILES:
         # let's limit files to 200 for now
         files = random.sample(files, MAX_FILES)
     i = 0
     for filename in files:
-        c, r, f, m, l, t = run_single(filename, main, sub, exprs, mrepl, srepl)
+        c, r, l = run_single(filename, main, sub, exprs, mrepl, srepl)
         if c is None:
             continue
         runcfg.append(c)
         results.append(r)
-        faillog.extend(f)
-        lenlog.extend(l)
-        timelog.extend(t)
-        multilog.extend(m)
+        log.extend(l)
         i = i + sum(r)
         if i > 1000:
             # abort after 1000 insertions
             break
     with open("{}_run.json".format(name), "w") as f: json.dump(runcfg, f, indent=0)
-    with open("{}_log.json".format(name), "w") as f: json.dump(results, f)
-    with open("{}_fail.json".format(name), "w") as f: json.dump(faillog, f, indent=0)
-    with open("{}_len.json".format(name), "w") as f: json.dump(lenlog, f, indent=0)
-    with open("{}_time.json".format(name), "w") as f: json.dump(timelog, f, indent=0)
-    with open("{}_multi.json".format(name), "w") as f: json.dump(multilog, f, indent=0)
+    with open("{}_log.json".format(name), "w") as f: json.dump(log, f, indent=0)
     print
 
 def run_single(filename, main, sub, exprs, mrepl, srepl, msample=None, ssample=None):
@@ -353,9 +341,10 @@ def run_single(filename, main, sub, exprs, mrepl, srepl, msample=None, ssample=N
     except Exception, e:
         # Errors here point to a bug in Eco, so it's better to just exclude
         # this file from the experiment.
+        print(e)
         sys.stdout.write("s")
         sys.stdout.flush()
-        return None, None, None, None, None, None
+        return None, None, None
     if r[1] > 0 or r[3] > 0:
         # insert_error and noinsert_error
         sys.stdout.write("x")
@@ -364,33 +353,21 @@ def run_single(filename, main, sub, exprs, mrepl, srepl, msample=None, ssample=N
         sys.stdout.write(".")
         sys.stdout.flush()
     config = (filename, fuz.main_samples, fuz.sub_samples)
-    return config, r, fuz.faillog, fuz.multilog, fuz.lenlog, fuz.timelog
+    return config, r, fuz.log
 
 def run_config(name, main, sub, configdir, exprs, mrepl, srepl=None):
     with open("{}/{}_run.json".format(configdir, name)) as f:
         runcfg = []
         log = []
-        faillog = []
-        lenlog = []
-        timelog = []
-        multilog = []
         config = json.load(f)
         for filename, msample, ssample in config:
-            c, r, f, m, l, t = run_single(filename, main, sub, exprs, mrepl, srepl, msample, ssample)
+            c, r, l = run_single(filename, main, sub, exprs, mrepl, srepl, msample, ssample)
             if c is None:
                 continue
             runcfg.append(c)
-            log.append(r)
-            lenlog.extend(l)
-            timelog.extend(t)
-            faillog.extend(f)
-            multilog.extend(m)
+            log.extend(l)
         with open("{}_run.json".format(name), "w") as f: json.dump(runcfg, f, indent=0)
-        with open("{}_log.json".format(name), "w") as f: json.dump(log, f)
-        with open("{}_fail.json".format(name), "w") as f: json.dump(faillog, f, indent=0)
-        with open("{}_len.json".format(name), "w") as f: json.dump(lenlog, f, indent=0)
-        with open("{}_time.json".format(name), "w") as f: json.dump(timelog, f, indent=0)
-        with open("{}_multi.json".format(name), "w") as f: json.dump(multilog, f, indent=0)
+        with open("{}_log.json".format(name), "w") as f: json.dump(log, f, indent=0)
         print
 
 def create_composition(smain, ssub, mainexpr, gmain, gsub, subexpr, histtok):

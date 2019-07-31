@@ -24,19 +24,17 @@ heu_names = {
     "line": "Line",
 }
 
-EXPERIMENT_DIR = "../logs_paper/"
+EXPERIMENT_DIR = "../logs/"
 
 class TableMaker:
 
     def __init__(self, folders):
         self.macros = []
         self.corpus = {}
-        self.inslen = {}
         self.get_benchmarks(folders[0])
         rows = []
         for folder in folders:
             data, corpus = self.parse(folder)
-            inslen = self.parse_length(folder)
             self.corpus[folder] = corpus
             rows.append(self.make_row(folder, data))
         table = self.make_table(rows)
@@ -52,11 +50,11 @@ class TableMaker:
         for c in self.benchmarks:
             totale = totalf = 0
             # collect data from expression benchmarks
-            data[c], totale = self.collect_stats_from_faillog("{}/{}/{}".format(EXPERIMENT_DIR, heuristic, c))
+            data[c], totale = self.collect_stats("{}/{}/{}".format(EXPERIMENT_DIR, heuristic, c))
             if os.path.isdir("{}/func_{}/".format(EXPERIMENT_DIR, heuristic)):
                 # add data from function benchmarks
                 if c[:-9] not in ["sqlitejava15", "sqlitelua5_3", "sqlitephp", "phpsqlite", "java15sqlite", "lua5_3sqlite"]:
-                    funcdata, totalf = self.collect_stats_from_faillog("{}/func_{}/{}".format(EXPERIMENT_DIR, heuristic, c))
+                    funcdata, totalf = self.collect_stats("{}/func_{}/{}".format(EXPERIMENT_DIR, heuristic, c))
                     for k in funcdata:
                         data[c][k] += funcdata[k]
             data[c]["total"] = totale + totalf
@@ -64,16 +62,7 @@ class TableMaker:
             corpus[c] = totale + totalf
         return data, corpus
 
-    def parse_length(self, heuristic):
-        data = {}
-        for c in self.benchmarks:
-            clen = c.replace("log.json", "len.json")
-            with open("{}/{}/{}".format(EXPERIMENT_DIR, heuristic, clen)) as f:
-                data[c] = json.load(f)
-        return data
-
-    def collect_stats_from_faillog(self, filename):
-        filename = filename.replace("log.json", "fail.json")
+    def collect_stats(self, filename):
         d = {
             "valid": 0,
             "invalid": 0,
@@ -88,67 +77,28 @@ class TableMaker:
         }
         with open(filename) as f:
             insdata = json.load(f)
-        with open(filename.replace("fail.json", "len.json")) as f2:
-            inslen = json.load(f2)
 
-        #print(filename)
         for i, entry in enumerate(insdata):
-            if entry[0] == "ok":
+            if entry[3] == "ok":
                 d["valid"] += 1
-                if inslen[i][0] == inslen[i][1]:
+                if entry[6][0] == entry[6][1]:
                     d["validsame"] += 1
                 else:
                     d["validdiff"] += 1
-            elif entry[0] == "inerr":
+            elif entry[3] == "inerr":
                 d["invalid"] += 1
-                if inslen[i][0] == inslen[i][1]:
+                if entry[6][0] == entry[6][1]:
                     d["invalidsame"] += 1
                 else:
                     d["invaliddiff"] += 1
-            elif entry[0] == "multi":
+            elif entry[3] == "multi":
                 d["nomulti"] += 1
-            elif entry[0] == "error":
+            elif entry[3] == "error":
                 d["noerror"] += 1
-            elif entry[0] == "valid":
+            elif entry[3] == "valid":
                 d["novalid"] += 1
 
-        assert len(insdata) == len(inslen)
         total = len(insdata)
-        return d, total
-
-    def collect_stats(self, filename):
-        d = {}
-        with open(filename) as f:
-            l = json.load(f)
-            with open(filename.replace("log.json", "len.json")) as f2:
-                l2 = json.load(f2)
-            total   = sum([sum(x) for x in l])
-            valid   = sum([x[0] for x in l])
-            invalid = sum([x[1] for x in l])
-            novalid = sum([x[2] for x in l])
-            noerror = sum([x[3] for x in l])
-            nomulti = sum([x[4] for x in l])
-            # collect lengths for valid/invalid
-            validsame = validdiff = invalidsame = invaliddiff = 0
-            for i in xrange(len(l)):
-                if l2[i][0] == l2[i][1]:
-                    validsame += l[i][0]
-                    invalidsame += l[i][1]
-                else:
-                    validsame += l[i][0]
-                    invaliddiff += l[i][1]
-            assert validsame + validdiff == valid
-            assert invalidsame + invaliddiff == invalid
-            assert invalidsame == 0
-            d["valid"]   = float(valid)   / total
-            d["invalid"] = float(invalid) / total
-            d["novalid"] = float(novalid) / total
-            d["noerror"] = float(noerror) / total
-            d["nomulti"] = float(nomulti) / total
-            d["validsame"]   = float(validsame)   / total
-            d["invalidsame"] = float(invalidsame) / total
-            d["validdiff"]   = float(validdiff)   / total
-            d["invaliddiff"] = float(invaliddiff) / total
         return d, total
 
     def get_benchmarks(self, heuristic):
