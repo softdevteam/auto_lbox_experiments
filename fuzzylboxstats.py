@@ -341,7 +341,6 @@ def run_single(filename, main, sub, exprs, mrepl, srepl, msample=None, ssample=N
     except Exception, e:
         # Errors here point to a bug in Eco, so it's better to just exclude
         # this file from the experiment.
-        print(e)
         sys.stdout.write("s")
         sys.stdout.flush()
         return None, None, None
