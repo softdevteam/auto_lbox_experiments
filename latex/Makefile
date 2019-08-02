@@ -19,8 +19,8 @@ corpusstats.tex:
 	./corpusmacros.sh > corpusstats.tex
 
 clean:
-	rm tbl_valid.tex
-	rm tbl_breakdown.tex
-	rm tbl_bench_*.tex
-	rm experimentstats.tex
-	rm corpusstats.tex
+	rm -f tbl_valid.tex
+	rm -f tbl_breakdown.tex
+	rm -f tbl_bench_*.tex
+	rm -f experimentstats.tex
+	rm -f corpusstats.tex
