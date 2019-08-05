@@ -3,7 +3,6 @@ from grammars.grammars import lang_dict
 from extractor import find_subtree, remove_tabs_newlines
 
 lua = lang_dict["Lua 5.3"]
-MAX_CHAR_LENGTH = 1000
 
 def expr_filter(n):
     return n.symbol.name == "explist"
@@ -42,10 +41,6 @@ if __name__ == "__main__":
             for e in expr:
                 try:
                     e.decode("utf8")
-                    if len(e) > MAX_CHAR_LENGTH:
-                        # Exclude long fragments to cut down the overall
-                        # runtime of the experiment
-                        continue
                     if target == "expressions":
                         e = RE_CMT.sub("", e)
                         e = remove_tabs_newlines(e, replnl=" ")

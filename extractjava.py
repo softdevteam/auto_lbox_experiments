@@ -3,7 +3,6 @@ from grammars.grammars import lang_dict
 from extractor import find_subtree, remove_tabs_newlines
 
 java = lang_dict["Java"]
-MAX_CHAR_LENGTH = 1000
 
 import re
 RE_CMT = re.compile(r"}(\s|\\r)*/\*.*?\*/$", re.MULTILINE)
@@ -30,10 +29,6 @@ if __name__ == "__main__":
             for e in expr:
                 try:
                     e.decode("utf8")
-                    if len(e) > MAX_CHAR_LENGTH:
-                        # Exclude long fragments to cut down the overall
-                        # runtime of the experiment
-                        continue
                     if target == "expressions":
                         e = remove_tabs_newlines(e)
                     else:
