@@ -387,7 +387,7 @@ if __name__ == "__main__":
     import sys
     import config
     args = sys.argv
-    wd = "/home/lukas/research/auto_lbox_experiments/"
+    wd = "../../../"
 
     if len(args) < 8:
         print("Missing arguments.\nUsage: python2 fuzzylboxstats.py MAINGRM MAINRULE SUBGRM SUBRULE FILES EXTENSION REPLACMENTS HISTORICTOKEN HEURISTIC [RERUNDIR]")
