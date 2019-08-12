@@ -3,7 +3,7 @@ from grammars.grammars import lang_dict
 from extractor import find_subtree, remove_tabs_newlines
 
 php = lang_dict["PHP"]
-MAX_CHAR_LENGTH = 1000
+MAX_CHAR_LENGTH = 5000
 
 def expressions_filter(n):
     return n.symbol.name == "expr_without_variable" and n.children[0].symbol.name == "expr"
