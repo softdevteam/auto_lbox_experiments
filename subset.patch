@@ -1,0 +1,13 @@
+diff --git a/fuzzylboxstats.py b/fuzzylboxstats.py
+index cfa4534..78b339e 100644
+--- a/lib/eco/fuzzylboxstats.py
++++ b/lib/eco/fuzzylboxstats.py
+@@ -7,7 +7,7 @@ from incparser.astree import MultiTextNode
+ # helper functions
+ 
+ debug = False
+-MAX_FILES = 100
++MAX_FILES = 5
+ 
+ def next_node(node):
+     while(node.right is None):
