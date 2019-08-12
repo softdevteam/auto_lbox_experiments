@@ -3,7 +3,7 @@ from grammars.grammars import lang_dict
 from extractor import find_subtree, remove_tabs_newlines
 
 java = lang_dict["Java"]
-MAX_CHAR_LENGTH = 1000
+MAX_CHAR_LENGTH = 5000
 
 import re
 RE_CMT = re.compile(r"}(\s|\\r)*/\*.*?\*/$", re.MULTILINE)

@@ -5,6 +5,11 @@ fi
 
 mkdir logs
 
+echo "Applying changes to run subset"
+cd eco
+git apply ../subset.patch
+cd ..
+
 echo "===> Running expression benchmarks"
 
 make comp_exprs HEURISTIC=all
@@ -38,3 +43,7 @@ echo "===> Analysing results and generating tables"
 cd latex
 make clean
 make
+
+echo "Resetting subset changes"
+# Reset changes made by build_subset.sh
+cp fuzzylboxstats.py eco/lib/eco

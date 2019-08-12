@@ -3,7 +3,7 @@ from grammars.grammars import lang_dict
 from extractor import find_subtree, remove_tabs_newlines
 
 lua = lang_dict["Lua 5.3"]
-MAX_CHAR_LENGTH = 1000
+MAX_CHAR_LENGTH = 5000
 
 def expr_filter(n):
     return n.symbol.name == "explist"

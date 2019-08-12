@@ -11,7 +11,7 @@ for s in l:
         if s.find(e) > -1:
             with open("sqlfiles/{}.sql".format(i), "w") as f:
                 try:
-                    f.write(s)
+                    f.write(s + ";")
                 except UnicodeEncodeError:
                     continue
     i += 1
