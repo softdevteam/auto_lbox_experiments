@@ -5,7 +5,8 @@ Benchmark automatic language boxes in Eco.
 ## Requirements
 
 - Python2
-- (Optional) PyPy
+- lib32z1
+- (Optional) PyPy (improves runtime of the experiment)
 - (Optional) PyQt4
 
 ## Quickstart
